@@ -1,0 +1,28 @@
+name: Build Docker Image
+on:
+  push:
+    branches:
+      - main
+permissions:
+  contents: read
+jobs:
+  build:
+    name: push docker image to docker hub
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: login to docker hub
+        id: docker-hub
+        env:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+        run: echo "$password" | docker login -u "$username" --password-stdin
+      - name: get-npm-version
+        id: package-version
+        uses: martinbeentjes/npm-get-version-action@v1.3.1
+      - name: build the docker image
+        id: build-docker-image
+        run: docker build -t agentvoiceresponse/avr-tts-soniox:latest -t agentvoiceresponse/avr-tts-soniox:${{ steps.package-version.outputs.current-version }} .
+      - name: push the docker image
+        id: push-docker-image
+        run: docker push agentvoiceresponse/avr-tts-soniox:latest && docker push agentvoiceresponse/avr-tts-soniox:${{ steps.package-version.outputs.current-version }}

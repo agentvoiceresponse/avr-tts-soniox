@@ -1,0 +1,21 @@
+{
+  "name": "avr-tts-soniox",
+  "version": "1.0.1",
+  "author": "Agent Voice Response <info@agentvoiceresponse.com>",
+  "description": "Soniox Text-to-Speech service for Agent Voice Response",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "start:dev": "nodemon --inspect index.js",
+    "test": "node --test",
+    "dc:build": "docker build --platform=linux/amd64 -t agentvoiceresponse/avr-tts-soniox:latest -t agentvoiceresponse/avr-tts-soniox:${npm_package_version} .",
+    "dc:push": "docker push agentvoiceresponse/avr-tts-soniox:latest && docker push agentvoiceresponse/avr-tts-soniox:${npm_package_version}"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "express": "^4.21.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}
