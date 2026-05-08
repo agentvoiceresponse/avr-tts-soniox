@@ -112,6 +112,12 @@ docker build -t agentvoiceresponse/avr-tts-soniox .
 docker run --rm -p 6011:6011 --env-file .env agentvoiceresponse/avr-tts-soniox
 ```
 
+## Release Reliability
+
+Release-time monitoring, quality gates, rollback steps, and drill checklist are documented in:
+
+- `docs/release-reliability.md`
+
 ## Support & Community
 
 - **GitHub:** [https://github.com/agentvoiceresponse](https://github.com/agentvoiceresponse) - Report issues, contribute code.

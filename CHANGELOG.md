@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.3] - 2026-05-08
+
+### Added
+- Added `docs/release-reliability.md` with ingest freshness alert spec, telemetry quality gate, rollback runbook, and drill checklist for release execution.
+- Linked release reliability runbook from `README.md` so on-call and QA can access rollout safety steps directly.
+
 ## [1.0.2] - 2026-05-08
 
 ### Fixed
