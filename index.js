@@ -5,7 +5,6 @@ const express = require('express');
 const http = require('node:http');
 const https = require('node:https');
 const { URL } = require('node:url');
-const { once } = require('node:events');
 
 require('dotenv').config();
 
@@ -43,7 +42,24 @@ const makeAbortError = (message, code) => {
 };
 
 const createAbortSignal = (controller, timeoutMs) => {
-  void timeoutMs;
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    return controller.signal;
+  }
+  const timeout = setTimeout(() => {
+    if (!controller.signal.aborted) {
+      controller.abort(makeAbortError(`Soniox upstream timed out after ${timeoutMs}ms`, 'SONIOX_UPSTREAM_TIMEOUT'));
+    }
+  }, timeoutMs);
+  if (typeof timeout.unref === 'function') {
+    timeout.unref();
+  }
+  controller.signal.addEventListener(
+    'abort',
+    () => {
+      clearTimeout(timeout);
+    },
+    { once: true }
+  );
   return controller.signal;
 };
 
@@ -78,7 +94,14 @@ const sonioxRequest = ({ url, apiKey, payload, signal, timeoutMs }) =>
       );
     });
 
-    const onAbort = () => req.destroy(makeAbortError('Request aborted', 'CLIENT_ABORTED'));
+    const onAbort = () => {
+      const reason = signal.reason;
+      if (reason instanceof Error) {
+        req.destroy(reason);
+        return;
+      }
+      req.destroy(makeAbortError('Request aborted', 'CLIENT_ABORTED'));
+    };
     signal.addEventListener('abort', onAbort, { once: true });
 
     req.on('close', () => {
@@ -237,8 +260,6 @@ app.post('/text-to-speech-stream', async (req, res) => {
     if (!upstream.readable) {
       return res.status(502).json({ error: 'Soniox returned an empty response body' });
     }
-    const upstreamEnded = once(upstream, 'end');
-
     for await (const chunk of upstream) {
       if (controller.signal.aborted || res.writableEnded || res.destroyed) {
         throw makeAbortError('Client disconnected during stream');
@@ -247,7 +268,6 @@ app.post('/text-to-speech-stream', async (req, res) => {
         await waitForDrainOrAbort(res, controller.signal);
       }
     }
-    await upstreamEnded;
 
     const trailerCode = getTrailerValue(upstream, 'x-tts-error-code');
     const trailerMessage = getTrailerValue(upstream, 'x-tts-error-message');
@@ -264,7 +284,8 @@ app.post('/text-to-speech-stream', async (req, res) => {
 
     res.end();
   } catch (error) {
-    if (controller.signal.aborted) {
+    const abortCode = controller.signal.reason?.code;
+    if (controller.signal.aborted && abortCode !== 'SONIOX_UPSTREAM_TIMEOUT') {
       // Client disconnected — avoid noisy connector errors.
       try {
         res.end();
@@ -281,11 +302,17 @@ app.post('/text-to-speech-stream', async (req, res) => {
       res.destroy(error);
       return;
     }
-    if (
-      error?.code === 'CLIENT_ABORTED' ||
-      error?.code === 'ECONNRESET' ||
-      error?.name === 'AbortError'
-    ) {
+    if (error?.code === 'ECONNRESET') {
+      if (!res.headersSent) {
+        return res.status(502).json({
+          error: 'soniox_tts_upstream_connection_reset',
+          details: 'Soniox upstream connection was reset',
+        });
+      }
+      res.destroy(error);
+      return;
+    }
+    if (error?.code === 'CLIENT_ABORTED' || error?.name === 'AbortError') {
       try {
         res.end();
       } catch {}
