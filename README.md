@@ -102,7 +102,8 @@ Expected error scenarios:
 - Missing `SONIOX_API_KEY` returns `500` with configuration error details.
 - Missing or invalid `text` returns `400 Bad Request`.
 - Soniox upstream timeout returns deterministic `504`.
-- Upstream/API/network failures return `500` or pass-through Soniox status when available.
+- Upstream connection resets return deterministic `502` with connector error taxonomy.
+- Other upstream/API/network failures return `500` or pass-through Soniox status when available.
 
 ## Docker Support
 
